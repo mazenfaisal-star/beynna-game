@@ -25,7 +25,9 @@ $('codeView').textContent=room;
 renderCats();
 setStatus('بنجهّز الغرفة… استنى لحد ما تظهر رسالة إن الغرفة جاهزة.');
 peer=new Peer('beynna-'+room,{debug:1,config:{iceServers:[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'}]}});
-peer.on('open',()=>setStatus('الغرفة جاهزة ✅ ابعت الكود للطرف التاني وخليه يدخله.'));
+let hostPeerReady=false;
+const hostReadyTimer=setTimeout(()=>{if(!hostPeerReady){setStatus('خادم الاتصال متأخر. اتأكد من الإنترنت وحاول تعمل غرفة جديدة.');err('لسه ما قدرناش نجهز الغرفة للاتصال.')}},12000);
+peer.on('open',()=>{hostPeerReady=true;clearTimeout(hostReadyTimer);setStatus('الغرفة جاهزة ✅ ابعت الكود للطرف التاني وخليه يدخله.');});
 peer.on('connection',c=>{
 if(conn&&conn.open){c.close();return}
 conn=c;
@@ -89,10 +91,12 @@ setStatus('بنوصل بخادم الاتصال…');
 joinAttempts=0;
 joinSucceeded=false;
 peer=new Peer(undefined,{debug:1,config:{iceServers:[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'}]}});
-peer.on('open',tryJoinRoom);
+let joinPeerReady=false;
+const joinReadyTimer=setTimeout(()=>{if(!joinPeerReady&&!joinSucceeded){setStatus('خادم الاتصال لم يستجب. راجع الإنترنت وحاول تاني.');err('تعذر الوصول لخادم الاتصال.')}},12000);
+peer.on('open',()=>{joinPeerReady=true;clearTimeout(joinReadyTimer);tryJoinRoom()});
 peer.on('error',e=>{
 if(e&&e.type==='peer-unavailable')setStatus(peerErrorText(e));
-else if(e&&e.type!=='network') {setStatus(peerErrorText(e));err(peerErrorText(e));}
+else {setStatus(peerErrorText(e));err(peerErrorText(e));}
 });
 }
 function wire(){conn.on('data',m=>{if(m.type==='join'&&host){otherName=m.name;conn.send({type:'names',names:[myName,otherName]});setStatus(otherName+' دخل الغرفة! اختاروا الفئات وابدأوا.')}if(m.type==='names'){otherName=m.names[0];myName=m.names[1];$('n0').textContent=myName;$('n1').textContent=otherName;setStatus('اتصلتوا ببعض بنجاح ✅')}if(m.type==='start'){cats=m.cats;deck=m.deck.slice(0,m.limit);idx=0;turn=0;scores=[0,0];answers=[null,null];enterGame()}if(m.type==='answer'){answers[m.player]=m.answer==='skip'?'skip':m.answer;renderAnswers();if(m.answer==='skip'&&host&&!penaltyState){assignPenalty(m.player)}}if(m.type==='penalty'){penaltyState=m.penalty;renderPenalty()}if(m.type==='penaltyDone'){if(penaltyState){penaltyState.done=true;renderPenalty();renderAnswers()}}if(m.type==='next'){idx=m.idx;scores=m.scores;answers=[null,null];showQuestion()}if(m.type==='custom'){deck.push(m.q)}});}
@@ -115,11 +119,11 @@ date:[
 {label:'جلسة بسيطة في الطبيعة',image:'https://images.unsplash.com/photo-1470770841072-f978cf4d019e?auto=format&fit=crop&w=700&q=80'}
 ],
 gift:[
-{label:'هدية ومفاجأة',image:'https://images.unsplash.com/photo-1513201099705-a9746e1e201f?auto=format&fit=crop&w=700&q=80'},
+{label:'هدية ومفاجأة',image:'https://images.unsplash.com/photo-1511795409834-ef04bbd61622?auto=format&fit=crop&w=700&q=80'},
 {label:'باقة ورد',image:'https://images.unsplash.com/photo-1490750967868-88aa4486c946?auto=format&fit=crop&w=700&q=80'},
 {label:'رسالة مكتوبة بخط اليد',image:'https://images.unsplash.com/photo-1455390582262-044cdead277a?auto=format&fit=crop&w=700&q=80'},
 {label:'تفصيلة صغيرة لها معنى',image:'https://images.unsplash.com/photo-1516589178581-6cd7833ae3b2?auto=format&fit=crop&w=700&q=80'},
-{label:'ذكرى بصورة',image:'https://images.unsplash.com/photo-1520857014576-2c4f4c972b57?auto=format&fit=crop&w=700&q=80'},
+{label:'ذكرى بصورة',image:'https://images.unsplash.com/photo-1516589178581-6cd7833ae3b2?auto=format&fit=crop&w=700&q=80'},
 {label:'مناسبة واحتفال',image:'https://images.unsplash.com/photo-1511795409834-ef04bbd61622?auto=format&fit=crop&w=700&q=80'}
 ],
 calm:[
@@ -144,7 +148,7 @@ const theme=questionPhotoTheme(q,c);
 if(!theme)return {q,c};
 const pool=photoLibrary[theme];
 const categoryOffset=Array.from(c).reduce((n,ch)=>n+ch.charCodeAt(0),0)%pool.length;
-const offset=(categoryOffset+index*2)%pool.length;
+const offset=(categoryOffset+index)%pool.length;
 const imageChoices=[0,1,2,3].map(n=>pool[(offset+n)%pool.length]);
 return {q,c,imageChoices};
 }
